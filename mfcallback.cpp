@@ -58,7 +58,9 @@ namespace Phonon
 				return hr;
 			}
 
-			return newCallback->QueryInterface(__uuidof(IMFAsyncCallback), reinterpret_cast<void**>(p));
+			(*p) = newCallback;
+
+			return S_OK;
 		}
 
 		HRESULT MFCallback::Initialise(MFSession* parent)
