@@ -37,24 +37,35 @@ namespace Phonon
 {
     namespace MF
     {        
-        MediaObject::MediaObject(QObject *parent) : //m_file(0), m_stream(0),
+		MediaObject::MediaObject(QObject *parent) : m_ticker(this),//m_file(0), m_stream(0),
                                                     //m_hWaveOut(0), m_nextBufferIndex(1), 
                                                     //m_mediaSize(-1), m_bufferingFinished(0),
-                                                    //m_paused(0), m_tickInterval(0),
+                                                    //m_paused(0),
                                                     //m_hasNextSource(0), m_hasSource(0),
                                                     //m_sourceIsValid(0),
 													//m_state(Phonon::LoadingState),
 													m_hasVideo(false),
-													m_errorType(Phonon::NoError)//,
-                                                    //m_currentTime(0), m_transitionTime(0),
+													m_seekable(false),
+													m_errorType(Phonon::NoError),
+													m_totalTime(0),
+													m_tickInterval(0),
+                                                    m_currentTime(0),
+													m_seeking(false),
+													m_queuedSeek(-1)//, m_transitionTime(0),
                                                     //m_tick(0), m_volume(100), m_prefinishMark(0),
                                                     //m_tickIntervalResolution(0), m_bufferPrepared(0),
                                                     //m_stopped(0)
         {
             setParent(parent);
-            //setState(Phonon::LoadingState);            
+            //setState(Phonon::LoadingState);
+
+			connect(&m_ticker, SIGNAL(timeout()), this, SLOT(onTick()));
 
 			connect(&m_session, SIGNAL(hasVideo(bool)), this, SLOT(setHasVideo(bool)));
+			connect(&m_session, SIGNAL(canSeek(bool)), this, SLOT(setSeekable(bool)));
+			connect(&m_session, SIGNAL(totalTimeChanged(qint64)), this, SLOT(setTotalTime(qint64)));
+			connect(&m_session, SIGNAL(started()), this, SLOT(started()));
+			connect(&m_session, SIGNAL(paused()), this, SLOT(paused()));
 			connect(&m_session, SIGNAL(stateChanged(Phonon::State, Phonon::State)), this, SIGNAL(stateChanged(Phonon::State, Phonon::State)));
         }
 
@@ -70,42 +81,44 @@ namespace Phonon
 
 		bool MediaObject::hasVideo() const
 		{
-			// TODO
-			return false;
+			return m_hasVideo;
 		}
 
 		bool MediaObject::isSeekable() const
 		{
-			// TODO
-			return false; 
+			return m_seekable;
 		}
 
 		qint64 MediaObject::totalTime() const
 		{
-			// TODO
-			return 0;//m_totalTime;
+			return m_totalTime;
 		}
 
 		qint64 MediaObject::currentTime() const
 		{
-			// TODO
-			return 0;//m_currentTime;
+			return m_currentTime;
 		}
 
 		qint32 MediaObject::tickInterval() const
 		{
-			// TODO
-			return 0;//m_tickInterval * m_tickIntervalResolution;
+			return m_tickInterval;
 		}
 
-		void MediaObject::setTickInterval(qint32 /*newTickInterval*/)
+		void MediaObject::setTickInterval(qint32 newTickInterval)
 		{
-			// TODO
-			/*if ((m_tickIntervalResolution == 0) || (newTickInterval == 0))
-				return;
-			m_tickInterval = newTickInterval / m_tickIntervalResolution;
-			if ((newTickInterval > 0) && (m_tickInterval == 0))
-				m_tickInterval = 1;*/
+			if (newTickInterval != m_tickInterval)
+			{
+				m_tickInterval = newTickInterval;
+
+				if (m_tickInterval == 0)
+				{
+					m_ticker.stop();
+				}
+				else
+				{
+					m_ticker.start(m_tickInterval);
+				}
+			}
 		}
 
 		void MediaObject::pause()
@@ -232,8 +245,20 @@ namespace Phonon
 				setState(Phonon::StoppedState);*/
 		}
 
-		void MediaObject::seek(qint64 /*time*/)
+		void MediaObject::seek(qint64 time)
 		{
+			if (m_seeking)
+			{
+				m_queuedSeek = time;
+				return;
+			}
+
+			m_queuedSeek = -1;
+
+			m_seeking = true;
+			// Convert from milliseconds to 100-nanoseconds
+			m_session.Seek(time * 10000);
+			
 			// TODO
 			/*if (!m_sourceIsValid) {
 				setError(Phonon::NormalError, QLatin1String("source is not valid"));
@@ -285,6 +310,17 @@ namespace Phonon
 		//	}*/
 		//}
 
+		void MediaObject::onTick()
+		{
+			if (m_seeking)
+				return;
+
+			// Convert 100-nanosecond to millisecond
+			m_currentTime = m_session.GetCurrentTime() / 10000;
+
+			emit tick(m_currentTime);
+		}
+
 		void MediaObject::setVolume(qreal /*newVolume*/)
 		{
 			// TODO
@@ -303,6 +339,44 @@ namespace Phonon
 				m_hasVideo = hasVideo;
 				emit hasVideoChanged(m_hasVideo);
 			}
+		}
+
+		void MediaObject::setSeekable(bool seekable)
+		{
+			if (m_seekable != seekable)
+			{
+				m_seekable = seekable;
+				emit seekableChanged(m_seekable);
+			}
+		}
+
+		void MediaObject::setTotalTime(qint64 totalTime)
+		{
+			if (m_totalTime != totalTime)
+			{
+				m_totalTime = totalTime;
+				emit totalTimeChanged(totalTime);
+			}
+		}
+
+		void MediaObject::started()
+		{
+			m_seeking = false;
+
+			if (m_queuedSeek != -1)
+			{
+				seek(m_queuedSeek);
+			}
+
+			if (m_tickInterval)
+			{
+				m_ticker.start(m_tickInterval);
+			}
+		}
+
+		void MediaObject::paused()
+		{
+			m_ticker.stop();
 		}
 	}
 }

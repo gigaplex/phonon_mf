@@ -20,6 +20,8 @@ along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <phonon/mediaobjectinterface.h>
 
+#include <QTimer>
+
 //#include <windows.h>
 #include "mfsession.h"
 
@@ -84,10 +86,16 @@ namespace Phonon
 			//void setAudioOutput(QObject* audioOutput);
 
 		private Q_SLOTS:
+			void onTick();
 			void setVolume(qreal newVolume);
 			void setHasVideo(bool hasVideo);
+			void setSeekable(bool seekable);
+			void setTotalTime(qint64 totalTime);
+			void started();
+			void paused();
 
 		private:
+			QTimer m_ticker;
 //			bool m_nextBufferIndex;
 //			bool prepareBuffers();
 //			void unPrepareBuffers();
@@ -115,15 +123,18 @@ namespace Phonon
 
 //			qreal m_volume;
 //			qint64 m_mediaSize;
-//			qint64 m_totalTime;
-//			qint64 m_currentTime;
+			qint64 m_totalTime;
+			qint64 m_currentTime;
 //			qint64 m_transitionTime;
 //			qint64 m_prefinishMark;
 //			qint64 m_tickIntervalResolution;
-//			qint32 m_tickInterval;
+			qint32 m_tickInterval;
 //			qint32 m_tick;
 //			Phonon::State m_state;
 			bool m_hasVideo;
+			bool m_seekable;
+			bool m_seeking;
+			qint64 m_queuedSeek;
 
 //			bool m_bufferingFinished;
 //			bool m_paused;

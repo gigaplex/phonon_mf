@@ -56,6 +56,10 @@ namespace Phonon
 			Phonon::State state() const;
 			void setVideoWidget(VideoWidget* videoWidget);
 
+			MFTIME GetDuration() const;
+			MFTIME GetCurrentTime() const;
+			HRESULT Seek(MFTIME pos);
+
 		protected:
 			HRESULT CreateSession();
 			HRESULT CloseSession();
@@ -72,6 +76,10 @@ namespace Phonon
 		Q_SIGNALS:
 			void stateChanged(Phonon::State, Phonon::State);
 			void hasVideo(bool);
+			void canSeek(bool);
+			void totalTimeChanged(qint64);
+			void started();
+			void paused();
 
 		private:
 			Phonon::State m_state;
@@ -81,6 +89,7 @@ namespace Phonon
 			ComPointer<IMFMediaSource> m_source;
 			ComPointer<IMFAsyncCallback> m_callback;
 			ComPointer<IMFPresentationDescriptor> m_presentation;
+			ComPointer<IMFPresentationClock> m_clock;
 
 			QList<ComPointer<IMFTopologyNode>> m_audioSources;
 			QList<ComPointer<IMFTopologyNode>> m_videoSources;

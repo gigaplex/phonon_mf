@@ -70,6 +70,9 @@ namespace Phonon
 			// TODO choose correct threading model
 			connect(this, SIGNAL(sourceReady(ComPointer<IMFMediaSource>)), parent, SLOT(sourceReady(ComPointer<IMFMediaSource>)), Qt::QueuedConnection);
 			connect(this, SIGNAL(topologyLoaded()), parent, SLOT(topologyLoaded()), Qt::QueuedConnection);
+			connect(this, SIGNAL(canSeek(bool)), parent, SIGNAL(canSeek(bool)), Qt::QueuedConnection);
+			connect(this, SIGNAL(started()), parent, SIGNAL(started()), Qt::QueuedConnection);
+			connect(this, SIGNAL(paused()), parent, SIGNAL(paused()), Qt::QueuedConnection);
 
 			// Must be a direct connection to set the event the thread is waiting on
 			connect(this, SIGNAL(sessionClosed()), parent, SLOT(sessionClosed()), Qt::DirectConnection);
@@ -152,10 +155,22 @@ namespace Phonon
 						break;
 					case MESessionCapabilitiesChanged:
 						{
+							UINT32 capabilities = 0;
 							UINT32 delta = 0;
 							event->GetUINT32(MF_EVENT_SESSIONCAPS_DELTA, &delta);
+							event->GetUINT32(MF_EVENT_SESSIONCAPS, &capabilities);
+							if (MFSESSIONCAP_SEEK & delta)
+							{
+								emit canSeek(MFSESSIONCAP_SEEK & capabilities);
+							}
 							emit capabilitiesChanged();
 						}
+						break;
+					case MESessionStarted:
+						emit started();
+						break;
+					case MESessionPaused:
+						emit paused();
 						break;
 					case MESessionEnded:
 						__asm{nop};

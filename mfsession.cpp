@@ -82,6 +82,7 @@ namespace Phonon
 					PROPVARIANT startParam;
 					PropVariantInit(&startParam);
 					return m_session->Start(0, &startParam);
+					PropVariantClear(&startParam);
 				}
 
 			case ErrorState:
@@ -251,6 +252,8 @@ namespace Phonon
 
 			HRESULT hr = m_session->SetTopology(MFSESSION_SETTOPOLOGY_IMMEDIATE, topology);
 
+			Q_ASSERT(SUCCEEDED(hr));
+
 			QueryPerformanceCounter(&end);
 			QueryPerformanceFrequency(&freq);
 
@@ -363,6 +366,16 @@ namespace Phonon
 
 				videoWidget->topologyLoaded(m_session);
 			}
+
+			// Convert from 100-nanosecond to millisecond
+			qint64 duration = GetDuration() / 10000;
+			emit totalTimeChanged(duration);
+
+			ComPointer<IMFClock> clock;
+			m_session->GetClock(clock.p());
+
+			m_clock = clock;
+
 			/*m_state = StoppedState;
 
 			if (m_nextState == PlayingState)
@@ -386,6 +399,46 @@ namespace Phonon
 		Phonon::State MFSession::state() const
 		{
 			return m_state;
+		}
+
+		MFTIME MFSession::GetDuration() const
+		{
+			MFTIME duration = 0;
+
+			if (m_presentation)
+			{
+				HRESULT hr = m_presentation->GetUINT64(MF_PD_DURATION, (UINT64*)&duration);
+
+				Q_ASSERT(SUCCEEDED(hr));
+			}
+
+			return duration;
+		}
+
+		HRESULT MFSession::Seek(MFTIME pos)
+		{
+			PROPVARIANT startParam;
+			PropVariantInit(&startParam);
+
+			startParam.vt = VT_I8;
+			startParam.hVal.QuadPart = pos;
+
+			return m_session->Start(0, &startParam);
+			//return m_clock->Start(pos);
+			PropVariantClear(&startParam);
+		}
+
+		MFTIME MFSession::GetCurrentTime() const
+		{
+			MFTIME currentTime = 0;
+
+			if (m_clock)
+			{
+				HRESULT hr = m_clock->GetTime(&currentTime);
+				//Q_ASSERT(SUCCEEDED(hr));
+			}
+
+			return currentTime;
 		}
 	}
 }

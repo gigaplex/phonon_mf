@@ -54,6 +54,9 @@ namespace Phonon
 			void sessionClosed();
 			void topologyLoaded();
 			void capabilitiesChanged();
+			void canSeek(bool);
+			void started();
+			void paused();
 
 		private:
 			MFCallback();
