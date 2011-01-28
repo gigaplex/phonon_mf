@@ -161,6 +161,10 @@ namespace Phonon
 
 		HRESULT MFSession::BeginCreateSource(const wchar_t* url)
 		{
+			setState(LoadingState);
+			m_nextState = StoppedState;
+			m_topoDirty = true;
+
 			m_audioSources.clear();
 			m_videoSources.clear();
 
@@ -264,6 +268,16 @@ namespace Phonon
 			return E_NOTIMPL;
 		}
 
+		void MFSession::setState(Phonon::State state)
+		{
+			if (m_state != state)
+			{
+				Phonon::State oldState = m_state;
+				m_state = state;
+				emit stateChanged(m_state, oldState);
+			}
+		}
+
 		void MFSession::sourceReady(ComPointer<IMFMediaSource> source)
 		{
 			m_audioSources.clear();
@@ -271,16 +285,11 @@ namespace Phonon
 
 			m_source = source;
 			// TODO kick off topology creation
+			m_topoDirty = true;
 
 			if (!m_source)
 			{
-				Phonon::State oldState = m_state;
-				m_state = ErrorState;
-
-				if (oldState != m_state)
-				{
-					emit stateChanged(m_state, oldState);
-				}
+				setState(ErrorState);
 
 				return;
 			}
@@ -338,12 +347,7 @@ namespace Phonon
 
 			emit hasVideo(!m_videoSources.isEmpty());
 
-			Phonon::State oldState = m_state;
-			m_state = StoppedState;
-			if (oldState != m_state)
-			{
-				emit stateChanged(m_state, oldState);
-			}
+			setState(StoppedState);
 
 			if (m_nextState == PlayingState)
 			{

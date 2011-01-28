@@ -61,6 +61,7 @@ namespace Phonon
 			HRESULT Seek(MFTIME pos);
 
 		protected:
+			void setState(Phonon::State state);
 			HRESULT CreateSession();
 			HRESULT CloseSession();
 			HRESULT BeginCreateSource(const wchar_t* url);
