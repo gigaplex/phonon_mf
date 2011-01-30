@@ -33,6 +33,7 @@ namespace Phonon
 	namespace MF
 	{
 		class VideoWidget;
+		class AudioOutput;
 
 		//class StreamNode
 		//{
@@ -54,7 +55,11 @@ namespace Phonon
 			HRESULT Stop();
 
 			Phonon::State state() const;
-			void setVideoWidget(VideoWidget* videoWidget);
+
+			void addVideoWidget(VideoWidget* videoWidget);
+			void removeVideoWidget(VideoWidget* videoWidget);
+			void addAudioOutput(AudioOutput* audioOutput);
+			void removeAudioOutput(AudioOutput* audioOutput);
 
 			MFTIME GetDuration() const;
 			MFTIME GetCurrentTime() const;
@@ -73,6 +78,8 @@ namespace Phonon
 			void sourceReady(ComPointer<IMFMediaSource> source);
 			void sessionClosed();
 			void topologyLoaded();
+			void onStarted();
+			void onEnded();
 
 		Q_SIGNALS:
 			void stateChanged(Phonon::State, Phonon::State);
@@ -81,6 +88,7 @@ namespace Phonon
 			void totalTimeChanged(qint64);
 			void started();
 			void paused();
+			void stopped();
 
 		private:
 			Phonon::State m_state;
@@ -96,6 +104,7 @@ namespace Phonon
 			QList<ComPointer<IMFTopologyNode>> m_videoSources;
 
 			QList<VideoWidget*> m_videoSinks;
+			QList<AudioOutput*> m_audioSinks;
 
 			HANDLE m_closedEvent;
 			bool m_topoDirty;

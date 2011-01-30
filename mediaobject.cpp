@@ -43,7 +43,6 @@ namespace Phonon
                                                     //m_paused(0),
                                                     //m_hasNextSource(0), m_hasSource(0),
                                                     //m_sourceIsValid(0),
-													//m_state(Phonon::LoadingState),
 													m_hasVideo(false),
 													m_seekable(false),
 													m_errorType(Phonon::NoError),
@@ -57,7 +56,6 @@ namespace Phonon
                                                     //m_stopped(0)
         {
             setParent(parent);
-            //setState(Phonon::LoadingState);
 
 			connect(&m_ticker, SIGNAL(timeout()), this, SLOT(onTick()));
 
@@ -66,6 +64,7 @@ namespace Phonon
 			connect(&m_session, SIGNAL(totalTimeChanged(qint64)), this, SLOT(setTotalTime(qint64)));
 			connect(&m_session, SIGNAL(started()), this, SLOT(started()));
 			connect(&m_session, SIGNAL(paused()), this, SLOT(paused()));
+			connect(&m_session, SIGNAL(stopped()), this, SLOT(stopped()));
 			connect(&m_session, SIGNAL(stateChanged(Phonon::State, Phonon::State)), this, SIGNAL(stateChanged(Phonon::State, Phonon::State)));
         }
 
@@ -175,8 +174,7 @@ namespace Phonon
 
 		qint64 MediaObject::remainingTime() const
 		{
-			// TODO
-			return 0;//m_totalTime - m_currentTime;
+			return m_totalTime - m_currentTime;
 		}
 
 		Phonon::MediaSource MediaObject::source() const
@@ -193,56 +191,10 @@ namespace Phonon
 
 		void MediaObject::setSource(const Phonon::MediaSource& source)
 		{
+			// TODO
 			m_source = source;
 			m_session.LoadURL(source.url().toString().utf16());
 			emit currentSourceChanged(source);
-			// TODO
-			/*if (m_state == Phonon::PlayingState)
-			{
-				setError(Phonon::NormalError, QLatin1String("source changed while playing"));
-				stop();
-			}
-
-			m_source = source;
-			m_hasSource = true;
-			m_sourceIsValid = false;
-
-			emit currentSourceChanged(source);
-
-			if (source.type() == Phonon::MediaSource::LocalFile) {
-				if (!openWaveFile(source.fileName())) {
-					setError(Phonon::FatalError, QLatin1String("cannot open media file"));
-					return ;
-				}
-			} else if (source.type() == Phonon::MediaSource::Stream) {
-				if (m_stream)
-					delete m_stream;
-				m_stream = new IOWrapper(this, source);
-				m_mediaSize = m_stream->size();
-			} else if (source.type() == Phonon::MediaSource::Url) {
-				if (!openWaveFile(source.url().toLocalFile())) {
-					setError(Phonon::FatalError, QLatin1String("cannot open media file"));
-					return ;
-				}
-			} else {
-				setError(Phonon::FatalError, QLatin1String("type of source not supported"));
-				return ;
-			}
-			setState(Phonon::LoadingState);
-
-			if (!readHeader())
-				setError(Phonon::FatalError, QLatin1String("invalid header"));
-			else if (!getWaveOutDevice())
-				setError(Phonon::FatalError, QLatin1String("No waveOut device available"));
-			else if (!fillBuffers())
-				setError(Phonon::FatalError, QLatin1String("no data for buffering"));
-			else if (!prepareBuffers())
-				setError(Phonon::FatalError, QLatin1String("cannot prepare buffers"));
-			else
-				m_sourceIsValid = true;
-
-			if (m_sourceIsValid)
-				setState(Phonon::StoppedState);*/
 		}
 
 		void MediaObject::seek(qint64 time)
@@ -253,62 +205,14 @@ namespace Phonon
 				return;
 			}
 
+			m_ticker.stop();
+
 			m_queuedSeek = -1;
 
 			m_seeking = true;
 			// Convert from milliseconds to 100-nanoseconds
 			m_session.Seek(time * 10000);
-			
-			// TODO
-			/*if (!m_sourceIsValid) {
-				setError(Phonon::NormalError, QLatin1String("source is not valid"));
-				return;
-			}
-			if ((time >= 0) && (time < m_totalTime)) {
-				int counter = 0;
-				while (!m_bufferingFinished && (counter < 200)) {
-					Sleep(20);
-					counter ++;
-				}
-				if (counter >= 200) {
-					setError(Phonon::NormalError, QLatin1String("buffering timed out"));
-					return;
-				}
-
-				m_stream->seek(WAVEHEADER_SIZE + time * m_waveFormatEx.nSamplesPerSec * m_waveFormatEx.wBitsPerSample * m_waveFormatEx.nChannels / 8 / 1000);
-				m_currentTime = time;
-				if (m_state == Phonon::PlayingState)
-					play();
-			} else {
-				setError(Phonon::NormalError, QLatin1String("seeking out of range"));
-			}*/
 		}
-
-		//void MediaObject::setState(Phonon::State newState)
-		//{
-		//	if (m_state == newState)
-		//		return;
-		//	emit stateChanged(newState, m_state);
-		//	m_state = newState;
-		//}
-
-		//void MediaObject::setError(ErrorType errorType, QString errorMessage)
-		//{
-		//	m_errorType = errorType;
-		//	setState(Phonon::ErrorState);
-		//	m_errorString = errorMessage;
-		//}
-
-		//void MediaObject::setAudioOutput(QObject* /*audioOutput*/)
-		//{
-		//	// TODO
-		//	/*m_audioOutput = qobject_cast<AudioOutput*>(audioOutput);
-
-		//	if (m_audioOutput) {
-		//		m_volume = m_audioOutput->volume();
-		//		connect(m_audioOutput, SIGNAL(volumeChanged(qreal)), this, SLOT(setVolume(qreal)));
-		//	}*/
-		//}
 
 		void MediaObject::onTick()
 		{
@@ -327,9 +231,24 @@ namespace Phonon
 			//m_volume = newVolume;
 		}
 
-		void MediaObject::setVideoWidget(VideoWidget* videoWidget)
+		void MediaObject::addVideoWidget(VideoWidget* videoWidget)
 		{
-			m_session.setVideoWidget(videoWidget);
+			m_session.addVideoWidget(videoWidget);
+		}
+
+		void MediaObject::removeVideoWidget(VideoWidget* videoWidget)
+		{
+			m_session.removeVideoWidget(videoWidget);
+		}
+
+		void MediaObject::addAudioOutput(AudioOutput* audioOutput)
+		{
+			m_session.addAudioOutput(audioOutput);
+		}
+
+		void MediaObject::removeAudioOutput(AudioOutput* audioOutput)
+		{
+			m_session.removeAudioOutput(audioOutput);
 		}
 
 		void MediaObject::setHasVideo(bool hasVideo)
@@ -368,7 +287,7 @@ namespace Phonon
 				seek(m_queuedSeek);
 			}
 
-			if (m_tickInterval)
+			if (m_session.state() == Phonon::PlayingState && m_tickInterval)
 			{
 				m_ticker.start(m_tickInterval);
 			}
@@ -376,6 +295,12 @@ namespace Phonon
 
 		void MediaObject::paused()
 		{
+			m_ticker.stop();
+		}
+
+		void MediaObject::stopped()
+		{
+			// TODO
 			m_ticker.stop();
 		}
 	}

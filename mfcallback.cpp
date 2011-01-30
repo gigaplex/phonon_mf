@@ -71,8 +71,9 @@ namespace Phonon
 			connect(this, SIGNAL(sourceReady(ComPointer<IMFMediaSource>)), parent, SLOT(sourceReady(ComPointer<IMFMediaSource>)), Qt::QueuedConnection);
 			connect(this, SIGNAL(topologyLoaded()), parent, SLOT(topologyLoaded()), Qt::QueuedConnection);
 			connect(this, SIGNAL(canSeek(bool)), parent, SIGNAL(canSeek(bool)), Qt::QueuedConnection);
-			connect(this, SIGNAL(started()), parent, SIGNAL(started()), Qt::QueuedConnection);
+			connect(this, SIGNAL(started()), parent, SLOT(onStarted()), Qt::QueuedConnection);
 			connect(this, SIGNAL(paused()), parent, SIGNAL(paused()), Qt::QueuedConnection);
+			connect(this, SIGNAL(ended()), parent, SLOT(onEnded()), Qt::QueuedConnection);
 
 			// Must be a direct connection to set the event the thread is waiting on
 			connect(this, SIGNAL(sessionClosed()), parent, SLOT(sessionClosed()), Qt::DirectConnection);
@@ -173,7 +174,7 @@ namespace Phonon
 						emit paused();
 						break;
 					case MESessionEnded:
-						__asm{nop};
+						emit ended();
 						break;
 					case MEEndOfPresentation:
 						__asm{nop};

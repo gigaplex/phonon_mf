@@ -66,7 +66,11 @@ namespace Phonon
 			void setSource(const MediaSource& source);
 			void setNextSource(const MediaSource& source);
 
-			void setVideoWidget(VideoWidget* videoWidget);
+			void addVideoWidget(VideoWidget* videoWidget);
+			void removeVideoWidget(VideoWidget* videoWidget);
+
+			void addAudioOutput(AudioOutput* audioOutput);
+			void removeAudioOutput(AudioOutput* audioOutput);
 
 		Q_SIGNALS:
 			void stateChanged(Phonon::State, Phonon::State);
@@ -80,10 +84,6 @@ namespace Phonon
 			void aboutToFinish();
 			void totalTimeChanged(qint64) const;
 			void currentSourceChanged(const MediaSource&);
-//			void outOfData(QIODevice *ioStream, QByteArray *buffer, bool *m_bufferingFinshed);
-
-		//protected:
-			//void setAudioOutput(QObject* audioOutput);
 
 		private Q_SLOTS:
 			void onTick();
@@ -93,6 +93,7 @@ namespace Phonon
 			void setTotalTime(qint64 totalTime);
 			void started();
 			void paused();
+			void stopped();
 
 		private:
 			QTimer m_ticker;

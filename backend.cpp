@@ -94,15 +94,21 @@ namespace Phonon
 
 		bool Backend::connectNodes(QObject* node1, QObject* node2)
 		{
+			// TODO
 			MediaObject* mediaObject = qobject_cast<MediaObject*>(node1);
 			VideoWidget* videoWidget = qobject_cast<VideoWidget*>(node2);
+			AudioOutput* audioOutput = qobject_cast<AudioOutput*>(node2);
 
 			if (mediaObject && videoWidget)
 			{
-				mediaObject->setVideoWidget(videoWidget);
+				mediaObject->addVideoWidget(videoWidget);
 			}
-			Q_UNUSED(node1);
-			Q_UNUSED(node2);
+
+			if (mediaObject && audioOutput)
+			{
+				mediaObject->addAudioOutput(audioOutput);
+			}
+
 			// TODO
 			//MediaObject *mediaObject = qobject_cast<MediaObject*> (node1);
 			//AudioOutput *audioOutput = qobject_cast<AudioOutput*> (node2);
@@ -114,8 +120,21 @@ namespace Phonon
 
 		bool Backend::disconnectNodes(QObject* node1, QObject* node2)
 		{
-			Q_UNUSED(node1);
-			Q_UNUSED(node2);
+			// TODO
+			MediaObject* mediaObject = qobject_cast<MediaObject*>(node1);
+			VideoWidget* videoWidget = qobject_cast<VideoWidget*>(node2);
+			AudioOutput* audioOutput = qobject_cast<AudioOutput*>(node2);
+
+			if (mediaObject && videoWidget)
+			{
+				mediaObject->removeVideoWidget(videoWidget);
+			}
+
+			if (mediaObject && audioOutput)
+			{
+				mediaObject->removeAudioOutput(audioOutput);
+			}
+
 			return true;
 		}
 

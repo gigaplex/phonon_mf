@@ -73,16 +73,14 @@ namespace Phonon
 
 			case PausedState:
 				{
-					Phonon::State oldState = m_state;
-					m_state = PlayingState;
-					if (oldState != m_state)
-					{
-						emit stateChanged(m_state, oldState);
-					}
 					PROPVARIANT startParam;
 					PropVariantInit(&startParam);
-					return m_session->Start(0, &startParam);
+					HRESULT hr = m_session->Start(0, &startParam);
 					PropVariantClear(&startParam);
+
+					setState(PlayingState);
+
+					return hr;
 				}
 
 			case ErrorState:
@@ -95,26 +93,31 @@ namespace Phonon
 		{
 			if (m_state == PlayingState)
 			{
-				HRESULT hr = m_session->Pause();
-				m_state = PausedState;
-				emit stateChanged(m_state, PlayingState);
-				return hr;
+				if (m_session)
+				{
+					HRESULT hr = m_session->Pause();
+					setState(PausedState);
+					return hr;
+				}
+				else
+				{
+					setState(ErrorState);
+				}
 			}
-			else
-			{
-				return E_NOTIMPL;
-			}
+	
+			return E_NOTIMPL;
 		}
 
 		HRESULT MFSession::Stop()
 		{
-			HRESULT hr = m_session->Stop();
-			Phonon::State oldState = m_state;
-			m_state = StoppedState;
-			if (oldState != m_state)
+			HRESULT hr = E_FAIL;
+			if (m_session)
 			{
-				emit stateChanged(m_state, oldState);
+				hr = m_session->Stop();
 			}
+
+			setState(StoppedState);
+
 			return hr;
 		}
 
@@ -389,15 +392,57 @@ namespace Phonon
 			}*/
 		}
 
+		void MFSession::onStarted()
+		{
+			if (m_state == Phonon::PausedState)
+			{
+				// Happens during seeking while paused
+				m_session->Pause();
+			}
+
+			emit started();
+		}
+
+		void MFSession::onEnded()
+		{
+			setState(Phonon::StoppedState);
+			emit stopped();
+		}
+
 		void MFSession::sessionClosed()
 		{
 			::SetEvent(m_closedEvent);
 		}
 
-		void MFSession::setVideoWidget(VideoWidget* videoWidget)
+		void MFSession::addVideoWidget(VideoWidget* videoWidget)
 		{
 			m_topoDirty = true;
 			m_videoSinks.push_back(videoWidget);
+
+			connect(this, SIGNAL(stateChanged(Phonon::State, Phonon::State)), videoWidget, SLOT(stateChanged(Phonon::State, Phonon::State)));
+		}
+
+		void MFSession::removeVideoWidget(VideoWidget* videoWidget)
+		{
+			// TODO
+			m_topoDirty = true;
+			m_videoSinks.removeOne(videoWidget);
+
+			disconnect(this, SIGNAL(stateChanged(Phonon::State, Phonon::State)), videoWidget, SLOT(stateChanged(Phonon::State, Phonon::State)));
+		}
+
+		void MFSession::addAudioOutput(AudioOutput* audioOutput)
+		{
+			// TODO
+			m_topoDirty = true;
+			m_audioSinks.push_back(audioOutput);
+		}
+
+		void MFSession::removeAudioOutput(AudioOutput* audioOutput)
+		{
+			// TODO
+			m_topoDirty = true;
+			m_audioSinks.removeOne(audioOutput);
 		}
 
 		Phonon::State MFSession::state() const

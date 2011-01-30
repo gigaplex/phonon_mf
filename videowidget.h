@@ -36,9 +36,7 @@ namespace Phonon
 			Q_INTERFACES(Phonon::VideoWidgetInterface)
 
 		public:
-			VideoWidget(QWidget* parent) : QWidget(parent)
-			{
-			}
+			VideoWidget(QWidget* parent);
 
 			Phonon::VideoWidget::AspectRatio aspectRatio() const{return Phonon::VideoWidget::AspectRatioAuto;}
 			void setAspectRatio(Phonon::VideoWidget::AspectRatio){}
@@ -60,11 +58,16 @@ namespace Phonon
 			}
 
 			void resizeEvent(QResizeEvent* event);
+			void paintEvent(QPaintEvent* event);
 
-			void topologyLoaded(IMFMediaSession* mediaSession);
+			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
+
+		public Q_SLOTS:
+			void stateChanged(Phonon::State newState, Phonon::State oldState);
 
 		private:
 			ComPointer<IMFVideoDisplayControl> m_videoControl;
+			bool m_videoActive;
 		};
 	}
 }
