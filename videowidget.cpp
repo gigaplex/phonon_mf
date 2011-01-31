@@ -58,6 +58,12 @@ namespace Phonon
 			}
 		}
 
+		void VideoWidget::reset()
+		{
+			m_videoActive = false;
+			m_videoControl.Release();
+		}
+
 		HRESULT VideoWidget::topologyLoaded(IMFMediaSession *mediaSession)
 		{
 			HRESULT hr = MFGetService(mediaSession, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)m_videoControl.p());

@@ -28,10 +28,8 @@ namespace Phonon
 {
 	namespace MF
 	{
-		AudioOutput::AudioOutput(Backend*, QObject* parent)
+		AudioOutput::AudioOutput(QObject* parent) : QObject(parent), m_volume(1.0)
 		{
-			setParent(parent);
-			m_volume = static_cast<unsigned int>(-1);
 		}
 
 		AudioOutput::~AudioOutput()
@@ -46,8 +44,22 @@ namespace Phonon
 
 		void AudioOutput::setVolume(qreal newVolume)
 		{
-			m_volume = newVolume;
-			emit volumeChanged(newVolume);
+			if (newVolume != m_volume)
+			{
+				m_volume = newVolume;
+
+				if (m_audioControl)
+				{
+					UINT32 channelCount = 0;
+					m_audioControl->GetChannelCount(&channelCount);
+					for (UINT32 i = 0; i < channelCount; i++)
+					{
+						m_audioControl->SetChannelVolume(i, m_volume);
+					}
+				}
+
+				emit volumeChanged(m_volume);
+			}
 		}
 
 		bool AudioOutput::setOutputDevice(const AudioOutputDevice & newDevice)
@@ -66,6 +78,27 @@ namespace Phonon
 			return (newDevice == 0);
 		}
 
+		void AudioOutput::reset()
+		{
+			m_audioControl.Release();
+		}
+
+		HRESULT AudioOutput::topologyLoaded(IMFMediaSession* mediaSession)
+		{
+			HRESULT hr = MFGetService(mediaSession, MR_STREAM_VOLUME_SERVICE, __uuidof(IMFAudioStreamVolume), (void**)m_audioControl.p());
+
+			if (m_audioControl)
+			{
+				UINT32 channelCount = 0;
+				m_audioControl->GetChannelCount(&channelCount);
+				for (UINT32 i = 0; i < channelCount; i++)
+				{
+					m_audioControl->SetChannelVolume(i, m_volume);
+				}
+			}
+
+			return hr;
+		}
 	}
 }
 

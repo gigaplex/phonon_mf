@@ -87,7 +87,6 @@ namespace Phonon
 
 		private Q_SLOTS:
 			void onTick();
-			void setVolume(qreal newVolume);
 			void setHasVideo(bool hasVideo);
 			void setSeekable(bool seekable);
 			void setTotalTime(qint64 totalTime);
@@ -122,7 +121,6 @@ namespace Phonon
 
 			MFSession m_session;
 
-//			qreal m_volume;
 //			qint64 m_mediaSize;
 			qint64 m_totalTime;
 			qint64 m_currentTime;

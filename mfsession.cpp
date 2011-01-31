@@ -16,6 +16,7 @@ along with this library.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "mfsession.h"
+#include "audiooutput.h"
 #include "videowidget.h"
 
 #include <QWidget>
@@ -191,6 +192,16 @@ namespace Phonon
 			DWORD streamCount = 0;
 			m_presentation->GetStreamDescriptorCount(&streamCount);
 
+			foreach(AudioOutput* audioOutput, m_audioSinks)
+			{
+				audioOutput->reset();
+			}
+
+			foreach(VideoWidget* videoWidget, m_videoSinks)
+			{
+				videoWidget->reset();
+			}
+
 			for (DWORD i = 0; i < streamCount; i++)
 			{
 				//m_presentation->SelectStream(i);
@@ -198,7 +209,14 @@ namespace Phonon
 			
 			for (int i = 0; i < m_audioSources.count(); i++)
 			{
+				if (i >= m_audioSinks.count())
+				{
+					break;
+				}
+
 				ComPointer<IMFTopologyNode> sourceNode = m_audioSources.at(i);
+
+				AudioOutput* audioOutput = m_audioSinks.at(i);
 				/*const StreamNode& streamNode = m_audioSources.at(i);
 				
 				ComPointer<IMFTopologyNode> sourceNode;
@@ -374,6 +392,11 @@ namespace Phonon
 				videoWidget->topologyLoaded(m_session);
 			}
 
+			foreach(AudioOutput* audioOutput, m_audioSinks)
+			{
+				audioOutput->topologyLoaded(m_session);
+			}
+
 			// Convert from 100-nanosecond to millisecond
 			qint64 duration = GetDuration() / 10000;
 			emit totalTimeChanged(duration);
@@ -382,6 +405,10 @@ namespace Phonon
 			m_session->GetClock(clock.p());
 
 			m_clock = clock;
+
+			DWORD capabilities = 0;
+			m_session->GetSessionCapabilities(&capabilities);
+			emit canSeek(capabilities & MFSESSIONCAP_SEEK);
 
 			/*m_state = StoppedState;
 

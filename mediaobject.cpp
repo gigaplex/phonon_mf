@@ -51,7 +51,7 @@ namespace Phonon
                                                     m_currentTime(0),
 													m_seeking(false),
 													m_queuedSeek(-1)//, m_transitionTime(0),
-                                                    //m_tick(0), m_volume(100), m_prefinishMark(0),
+                                                    //m_tick(0), m_prefinishMark(0),
                                                     //m_tickIntervalResolution(0), m_bufferPrepared(0),
                                                     //m_stopped(0)
         {
@@ -223,12 +223,6 @@ namespace Phonon
 			m_currentTime = m_session.GetCurrentTime() / 10000;
 
 			emit tick(m_currentTime);
-		}
-
-		void MediaObject::setVolume(qreal /*newVolume*/)
-		{
-			// TODO
-			//m_volume = newVolume;
 		}
 
 		void MediaObject::addVideoWidget(VideoWidget* videoWidget)

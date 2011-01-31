@@ -20,7 +20,9 @@ along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <phonon/audiooutputinterface.h>
 
-#include "backend.h"
+#include <mfidl.h>
+
+#include "compointer.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -34,7 +36,7 @@ namespace Phonon
 			Q_INTERFACES(Phonon::AudioOutputInterface)
 
 		public:
-			AudioOutput(Backend* backend, QObject* parent);
+			AudioOutput(QObject* parent);
 			~AudioOutput();
 
 			qreal volume() const;
@@ -43,12 +45,16 @@ namespace Phonon
 			bool setOutputDevice(int newDevice);
 			bool setOutputDevice(const AudioOutputDevice& newDevice);
 
+			void reset();
+			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
+
 		Q_SIGNALS:
 			void audioDeviceFailed();
 			void volumeChanged(qreal);
 
 		private:
-			unsigned int m_volume;
+			ComPointer<IMFAudioStreamVolume> m_audioControl;
+			qreal m_volume;
 		};
 	}
 }

@@ -56,7 +56,7 @@ namespace Phonon
 			case MediaObjectClass:
 				return new MediaObject(parent);
 			case AudioOutputClass:
-				return new AudioOutput(this, parent);
+				return new AudioOutput(parent);
 			case VideoWidgetClass:
 				return new VideoWidget(qobject_cast<QWidget*>(parent));
 			default:

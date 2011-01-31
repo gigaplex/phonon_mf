@@ -60,6 +60,7 @@ namespace Phonon
 			void resizeEvent(QResizeEvent* event);
 			void paintEvent(QPaintEvent* event);
 
+			void reset();
 			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
 
 		public Q_SLOTS:
