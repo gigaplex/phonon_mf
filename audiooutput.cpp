@@ -80,11 +80,18 @@ namespace Phonon
 
 		void AudioOutput::reset()
 		{
+			m_topoNode.Release();
 			m_audioControl.Release();
+		}
+
+		void AudioOutput::attach(IMFTopologyNode* node)
+		{
+			m_topoNode = node;
 		}
 
 		HRESULT AudioOutput::topologyLoaded(IMFMediaSession* mediaSession)
 		{
+			// TODO
 			HRESULT hr = MFGetService(mediaSession, MR_STREAM_VOLUME_SERVICE, __uuidof(IMFAudioStreamVolume), (void**)m_audioControl.p());
 
 			if (m_audioControl)

@@ -46,6 +46,7 @@ namespace Phonon
 			bool setOutputDevice(const AudioOutputDevice& newDevice);
 
 			void reset();
+			void attach(IMFTopologyNode* node);
 			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
 
 		Q_SIGNALS:
@@ -53,6 +54,7 @@ namespace Phonon
 			void volumeChanged(qreal);
 
 		private:
+			ComPointer<IMFTopologyNode> m_topoNode;
 			ComPointer<IMFAudioStreamVolume> m_audioControl;
 			qreal m_volume;
 		};

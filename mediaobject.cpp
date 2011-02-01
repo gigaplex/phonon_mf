@@ -19,15 +19,7 @@ along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #include "audiooutput.h"
 #include "videowidget.h"
 
-//#include <QtCore/QVector>
-//#include <QtCore/QTimerEvent>
-//#include <QtCore/QTimer>
-//#include <QtCore/QTime>
-//#include <QtCore/QLibrary>
 #include <QtCore/QUrl>
-//#include <QtCore/QWriteLocker>
-
-//#include <phonon/streaminterface.h>
 
 #include "compointer.h"
 
@@ -37,12 +29,7 @@ namespace Phonon
 {
     namespace MF
     {        
-		MediaObject::MediaObject(QObject *parent) : m_ticker(this),//m_file(0), m_stream(0),
-                                                    //m_hWaveOut(0), m_nextBufferIndex(1), 
-                                                    //m_mediaSize(-1), m_bufferingFinished(0),
-                                                    //m_paused(0),
-                                                    //m_hasNextSource(0), m_hasSource(0),
-                                                    //m_sourceIsValid(0),
+		MediaObject::MediaObject(QObject *parent) : m_ticker(this),
 													m_hasVideo(false),
 													m_seekable(false),
 													m_errorType(Phonon::NoError),
@@ -50,10 +37,7 @@ namespace Phonon
 													m_tickInterval(0),
                                                     m_currentTime(0),
 													m_seeking(false),
-													m_queuedSeek(-1)//, m_transitionTime(0),
-                                                    //m_tick(0), m_prefinishMark(0),
-                                                    //m_tickIntervalResolution(0), m_bufferPrepared(0),
-                                                    //m_stopped(0)
+													m_queuedSeek(-1)
         {
             setParent(parent);
 
@@ -62,10 +46,11 @@ namespace Phonon
 			connect(&m_session, SIGNAL(hasVideo(bool)), this, SLOT(setHasVideo(bool)));
 			connect(&m_session, SIGNAL(canSeek(bool)), this, SLOT(setSeekable(bool)));
 			connect(&m_session, SIGNAL(totalTimeChanged(qint64)), this, SLOT(setTotalTime(qint64)));
+			connect(&m_session, SIGNAL(metaDataChanged(QMultiMap<QString, QString>)), this, SIGNAL(metaDataChanged(QMultiMap<QString, QString>)));
+			connect(&m_session, SIGNAL(stateChanged(Phonon::State, Phonon::State)), this, SIGNAL(stateChanged(Phonon::State, Phonon::State)));
 			connect(&m_session, SIGNAL(started()), this, SLOT(started()));
 			connect(&m_session, SIGNAL(paused()), this, SLOT(paused()));
 			connect(&m_session, SIGNAL(stopped()), this, SLOT(stopped()));
-			connect(&m_session, SIGNAL(stateChanged(Phonon::State, Phonon::State)), this, SIGNAL(stateChanged(Phonon::State, Phonon::State)));
         }
 
 		MediaObject::~MediaObject()
@@ -185,6 +170,7 @@ namespace Phonon
 
 		void MediaObject::setNextSource(const Phonon::MediaSource &source)
 		{
+			// TODO
 			m_nextSource = source;
 			//m_hasNextSource = true;
 		}

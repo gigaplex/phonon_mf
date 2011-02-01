@@ -35,6 +35,17 @@ namespace Phonon
 			setPalette(p);
 		}
 
+		QSize VideoWidget::sizeHint() const
+		{
+			if (m_videoControl)
+			{
+				SIZE videoSize = {0, 0};
+				m_videoControl->GetNativeVideoSize(&videoSize, NULL);
+				return QSize(videoSize.cx, videoSize.cy);
+			}
+			return QSize(800, 600);
+		}
+
 		void VideoWidget::resizeEvent(QResizeEvent* event)
 		{
 			if (event && m_videoControl)
@@ -61,12 +72,29 @@ namespace Phonon
 		void VideoWidget::reset()
 		{
 			m_videoActive = false;
+			m_topoNode.Release();
 			m_videoControl.Release();
+		}
+
+		void VideoWidget::attach(IMFTopologyNode* node)
+		{
+			m_topoNode = node;
 		}
 
 		HRESULT VideoWidget::topologyLoaded(IMFMediaSession *mediaSession)
 		{
 			HRESULT hr = MFGetService(mediaSession, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)m_videoControl.p());
+
+			if (m_topoNode)
+			{
+				ComPointer<IUnknown> object;
+				m_topoNode->GetObject(object.p());
+				ComPointer<IMFVideoDisplayControl> tempControl;
+				hr = MFGetService(object, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)tempControl.p());
+				Q_ASSERT(SUCCEEDED(hr));
+				m_videoControl = tempControl;
+			}
+
 			return hr;
 		}
 

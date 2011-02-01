@@ -52,21 +52,19 @@ namespace Phonon
 			void setSaturation(qreal){}
 			QWidget *widget(){return this;}
 
-			QSize sizeHint() const
-			{
-				return QSize(800, 600);
-			}
-
+			QSize sizeHint() const;
 			void resizeEvent(QResizeEvent* event);
 			void paintEvent(QPaintEvent* event);
 
 			void reset();
+			void attach(IMFTopologyNode* node);
 			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
 
 		public Q_SLOTS:
 			void stateChanged(Phonon::State newState, Phonon::State oldState);
 
 		private:
+			ComPointer<IMFTopologyNode> m_topoNode;
 			ComPointer<IMFVideoDisplayControl> m_videoControl;
 			bool m_videoActive;
 		};

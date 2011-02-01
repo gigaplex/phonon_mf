@@ -96,22 +96,6 @@ namespace Phonon
 
 		private:
 			QTimer m_ticker;
-//			bool m_nextBufferIndex;
-//			bool prepareBuffers();
-//			void unPrepareBuffers();
-//			bool getWaveOutDevice();
-//			bool openWaveFile(QString fileName);
-//			bool readHeader();
-//			bool boolUpdateBuffer();
-//			bool fillBuffers();
-//			void swapBuffers();
-//			void setState(Phonon::State newState);
-//			void setError(ErrorType errorType, QString errorMessage);
-//			void deleteValidWaveOutDevice();
-//			void playBuffer(WAVEHDR *waveHeader);
-
-//			static void CALLBACK WaveOutCallBack(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2);
-
 			QString m_errorString;
 			ErrorType m_errorType;
 

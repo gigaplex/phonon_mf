@@ -86,6 +86,7 @@ namespace Phonon
 			void hasVideo(bool);
 			void canSeek(bool);
 			void totalTimeChanged(qint64);
+			void metaDataChanged(QMultiMap<QString, QString>);
 			void started();
 			void paused();
 			void stopped();

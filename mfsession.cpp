@@ -189,9 +189,6 @@ namespace Phonon
 			ComPointer<IMFTopology> topology;
 			MFCreateTopology(topology.p());
 
-			DWORD streamCount = 0;
-			m_presentation->GetStreamDescriptorCount(&streamCount);
-
 			foreach(AudioOutput* audioOutput, m_audioSinks)
 			{
 				audioOutput->reset();
@@ -202,11 +199,6 @@ namespace Phonon
 				videoWidget->reset();
 			}
 
-			for (DWORD i = 0; i < streamCount; i++)
-			{
-				//m_presentation->SelectStream(i);
-			}
-			
 			for (int i = 0; i < m_audioSources.count(); i++)
 			{
 				if (i >= m_audioSinks.count())
@@ -217,17 +209,10 @@ namespace Phonon
 				ComPointer<IMFTopologyNode> sourceNode = m_audioSources.at(i);
 
 				AudioOutput* audioOutput = m_audioSinks.at(i);
-				/*const StreamNode& streamNode = m_audioSources.at(i);
-				
-				ComPointer<IMFTopologyNode> sourceNode;
-				MFCreateTopologyNode(MF_TOPOLOGY_SOURCESTREAM_NODE, sourceNode.p());
-
-				sourceNode->SetUnknown(MF_TOPONODE_SOURCE, m_source);
-				sourceNode->SetUnknown(MF_TOPONODE_STREAM_DESCRIPTOR, streamNode.m_stream);
-				sourceNode->SetUnknown(MF_TOPONODE_PRESENTATION_DESCRIPTOR, streamNode.m_presentation);*/
 
 				ComPointer<IMFTopologyNode> outputNode;
 				MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, outputNode.p());
+				audioOutput->attach(outputNode);
 
 				ComPointer<IMFActivate> activate;
 				MFCreateAudioRendererActivate(activate.p());
@@ -240,39 +225,34 @@ namespace Phonon
 
 			for (int i = 0; i < m_videoSources.count(); i++)
 			{
-				HWND hWnd = 0;
-
-				VideoWidget* videoWidget = 0;
-
-				if (!m_videoSinks.isEmpty())
+				if (i >= m_videoSinks.count())
 				{
-					videoWidget = m_videoSinks.front();
+					break;
 				}
 
-				if (videoWidget)
-				{
-					hWnd = videoWidget->widget()->winId();
-				}
+				ComPointer<IMFTopologyNode> teeNode;
+				MFCreateTopologyNode(MF_TOPOLOGY_TEE_NODE, teeNode.p());
+				topology->AddNode(teeNode);
 
 				ComPointer<IMFTopologyNode> sourceNode = m_videoSources.at(i);
-				//const StreamNode& streamNode = m_videoSources.at(i);
-
-				//ComPointer<IMFTopologyNode> sourceNode;
-				//MFCreateTopologyNode(MF_TOPOLOGY_SOURCESTREAM_NODE, sourceNode.p());
-
-				//sourceNode->SetUnknown(MF_TOPONODE_SOURCE, m_source);
-				//sourceNode->SetUnknown(MF_TOPONODE_STREAM_DESCRIPTOR, streamNode.m_stream);
-				//sourceNode->SetUnknown(MF_TOPONODE_PRESENTATION_DESCRIPTOR, streamNode.m_presentation);
-
-				ComPointer<IMFTopologyNode> outputNode;
-				MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, outputNode.p());
-
-				ComPointer<IMFActivate> activate;
-				MFCreateVideoRendererActivate(hWnd, activate.p());
-				outputNode->SetObject(activate);
 				topology->AddNode(sourceNode);
-				topology->AddNode(outputNode);
-				sourceNode->ConnectOutput(0, outputNode, 0);
+				sourceNode->ConnectOutput(0, teeNode, 0);
+
+				for (int j = 0; j < m_videoSinks.count(); j++)
+				{
+					VideoWidget* videoWidget = m_videoSinks.at(j);
+					HWND hWnd = videoWidget->widget()->winId();
+
+					ComPointer<IMFTopologyNode> outputNode;
+					MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, outputNode.p());
+					videoWidget->attach(outputNode);
+
+					ComPointer<IMFActivate> activate;
+					MFCreateVideoRendererActivate(hWnd, activate.p());
+					outputNode->SetObject(activate);
+					topology->AddNode(outputNode);
+					teeNode->ConnectOutput(j, outputNode, 0);
+				}
 			}
 
 			HRESULT hr = m_session->SetTopology(MFSESSION_SETTOPOLOGY_IMMEDIATE, topology);
@@ -315,25 +295,22 @@ namespace Phonon
 				return;
 			}
 						
-			ComPointer<IMFPresentationDescriptor> presentation;
-			m_source->CreatePresentationDescriptor(presentation.p());
-
-			m_presentation = presentation;
+			m_source->CreatePresentationDescriptor(m_presentation.p());
 
 			DWORD streamCount = 0;
-			presentation->GetStreamDescriptorCount(&streamCount);
+			m_presentation->GetStreamDescriptorCount(&streamCount);
 
 			for (DWORD i = 0; i < streamCount; i++)
 			{
 				BOOL isSelected = FALSE;
 				ComPointer<IMFStreamDescriptor> stream;
-				presentation->GetStreamDescriptorByIndex(i, &isSelected, stream.p());
+				m_presentation->GetStreamDescriptorByIndex(i, &isSelected, stream.p());
 
 				// Need to re-evaluate this, if playing a video without a videowidget then adding a
 				// videowidget later, the video stream is unselected by MS internal code
 				if (!isSelected)
 				{
-					isSelected = presentation->SelectStream(i) == S_OK;
+					isSelected = m_presentation->SelectStream(i) == S_OK;
 				}
 
 				if (isSelected)
@@ -341,13 +318,9 @@ namespace Phonon
 					ComPointer<IMFTopologyNode> sourceNode;
 					MFCreateTopologyNode(MF_TOPOLOGY_SOURCESTREAM_NODE, sourceNode.p());
 
-					//StreamNode sourceNode;
-					//sourceNode.m_presentation = presentation;
-					//sourceNode.m_stream = stream;
-
 					sourceNode->SetUnknown(MF_TOPONODE_SOURCE, m_source);
 					sourceNode->SetUnknown(MF_TOPONODE_STREAM_DESCRIPTOR, stream);
-					sourceNode->SetUnknown(MF_TOPONODE_PRESENTATION_DESCRIPTOR, presentation);
+					sourceNode->SetUnknown(MF_TOPONODE_PRESENTATION_DESCRIPTOR, m_presentation);
 
 					ComPointer<IMFMediaTypeHandler> mediaType;
 					stream->GetMediaTypeHandler(mediaType.p());
@@ -366,7 +339,78 @@ namespace Phonon
 				}
 			}
 
+			// Convert from 100-nanosecond to millisecond
+			qint64 duration = GetDuration() / 10000;
+			emit totalTimeChanged(duration);
+
 			emit hasVideo(!m_videoSources.isEmpty());
+
+			QMultiMap<QString, QString> metadataMap;
+
+			ComPointer<IMFMetadataProvider> metadataProvider;
+			if (SUCCEEDED(MFGetService(m_source, MF_METADATA_PROVIDER_SERVICE, __uuidof(IMFMetadataProvider), (void**)metadataProvider.p())))
+			{
+				ComPointer<IMFMetadata> metadata;
+				metadataProvider->GetMFMetadata(m_presentation, 0, 0, metadata.p());
+
+				PROPVARIANT meta;
+				PropVariantInit(&meta);
+				if (SUCCEEDED(metadata->GetAllPropertyNames(&meta)))
+				{
+					for (ULONG i = 0; i < meta.calpwstr.cElems; i++)
+					{
+						PROPVARIANT propVal;
+						PropVariantInit(&propVal);
+						if (SUCCEEDED(metadata->GetProperty(meta.calpwstr.pElems[i], &propVal)))
+						{
+							switch (propVal.vt)
+							{
+							case VT_LPWSTR:
+								{
+									QString key = QString::fromUtf16(meta.calpwstr.pElems[i]);
+									QString value = QString::fromUtf16(propVal.pwszVal);
+
+									if (key == "WM/AlbumArtist")
+									{
+										metadataMap.insert("ARTIST", value);
+									}
+									else if (key == "WM/AlbumTitle")
+									{
+										metadataMap.insert("ALBUM", value);
+									}
+									else if (key == "Title")
+									{
+										metadataMap.insert("TITLE", value);
+									}
+									else if (key == "WM/Year")
+									{
+										metadataMap.insert("DATE", value);
+									}
+									else if (key == "WM/Genre")
+									{
+										metadataMap.insert("GENRE", value);
+									}
+									else if (key == "WM/TrackNumber")
+									{
+										metadataMap.insert("TRACKNUMBER", value);
+									}
+
+									key += ": ";
+									key += value;
+									qDebug(key.toAscii());
+									break;
+								}
+							default:
+								qDebug(QString::fromUtf16(meta.calpwstr.pElems[i]).toAscii());
+							}
+						}
+						PropVariantClear(&propVal);
+					}
+				}
+				PropVariantClear(&meta);
+			}
+
+			emit metaDataChanged(metadataMap);
 
 			setState(StoppedState);
 
@@ -381,14 +425,6 @@ namespace Phonon
 		{
 			foreach(VideoWidget* videoWidget, m_videoSinks)
 			{
-				//ComPointer<IUnknown> object;
-				//g_videoNode->GetObject(object.p());
-
-				//ComPointer<IMFGetService> service(object);
-
-				//ComPointer<IMFVideoDisplayControl> control;
-				//service->GetService(MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)control.p());
-
 				videoWidget->topologyLoaded(m_session);
 			}
 
@@ -396,10 +432,6 @@ namespace Phonon
 			{
 				audioOutput->topologyLoaded(m_session);
 			}
-
-			// Convert from 100-nanosecond to millisecond
-			qint64 duration = GetDuration() / 10000;
-			emit totalTimeChanged(duration);
 
 			ComPointer<IMFClock> clock;
 			m_session->GetClock(clock.p());
@@ -409,14 +441,6 @@ namespace Phonon
 			DWORD capabilities = 0;
 			m_session->GetSessionCapabilities(&capabilities);
 			emit canSeek(capabilities & MFSESSIONCAP_SEEK);
-
-			/*m_state = StoppedState;
-
-			if (m_nextState == PlayingState)
-			{
-				Play();
-				m_nextState = StoppedState;
-			}*/
 		}
 
 		void MFSession::onStarted()
@@ -454,6 +478,7 @@ namespace Phonon
 			// TODO
 			m_topoDirty = true;
 			m_videoSinks.removeOne(videoWidget);
+			videoWidget->reset();
 
 			disconnect(this, SIGNAL(stateChanged(Phonon::State, Phonon::State)), videoWidget, SLOT(stateChanged(Phonon::State, Phonon::State)));
 		}
@@ -470,6 +495,7 @@ namespace Phonon
 			// TODO
 			m_topoDirty = true;
 			m_audioSinks.removeOne(audioOutput);
+			audioOutput->reset();
 		}
 
 		Phonon::State MFSession::state() const
