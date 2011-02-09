@@ -90,6 +90,7 @@ namespace Phonon
 			void started();
 			void paused();
 			void stopped();
+			void ended();
 
 		private:
 			Phonon::State m_state;
@@ -109,8 +110,6 @@ namespace Phonon
 
 			HANDLE m_closedEvent;
 			bool m_topoDirty;
-
-			friend MFCallback;
 		};
 	}
 }

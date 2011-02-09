@@ -93,41 +93,29 @@ namespace Phonon
 			void started();
 			void paused();
 			void stopped();
+			void ended();
 
 		private:
+			MFSession m_session;
+
 			QTimer m_ticker;
 			QString m_errorString;
 			ErrorType m_errorType;
 
 			MediaSource m_source;
 			MediaSource m_nextSource;
-			AudioOutput *m_audioOutput;
+			bool m_hasNextSource;
 
-			MFSession m_session;
-
-//			qint64 m_mediaSize;
 			qint64 m_totalTime;
-			qint64 m_currentTime;
 //			qint64 m_transitionTime;
-//			qint64 m_prefinishMark;
-//			qint64 m_tickIntervalResolution;
+			qint64 m_prefinishMark;
 			qint32 m_tickInterval;
-//			qint32 m_tick;
-//			Phonon::State m_state;
 			bool m_hasVideo;
 			bool m_seekable;
 			bool m_seeking;
+			bool m_prefinishEmitted;
+			bool m_aboutToFinishEmitted;
 			qint64 m_queuedSeek;
-
-//			bool m_bufferingFinished;
-//			bool m_paused;
-//			bool m_stopped;            
-//			bool m_hasNextSource; 
-//			bool m_hasSource;
-//			bool m_sourceIsValid;
-//			bool m_bufferPrepared;
-
-			friend class Backend;
 		};
 	}
 }

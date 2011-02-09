@@ -73,6 +73,7 @@ namespace Phonon
 			connect(this, SIGNAL(canSeek(bool)), parent, SIGNAL(canSeek(bool)), Qt::QueuedConnection);
 			connect(this, SIGNAL(started()), parent, SLOT(onStarted()), Qt::QueuedConnection);
 			connect(this, SIGNAL(paused()), parent, SIGNAL(paused()), Qt::QueuedConnection);
+			connect(this, SIGNAL(stopped()), parent, SIGNAL(stopped()), Qt::QueuedConnection);
 			connect(this, SIGNAL(ended()), parent, SLOT(onEnded()), Qt::QueuedConnection);
 
 			// Must be a direct connection to set the event the thread is waiting on
@@ -138,53 +139,103 @@ namespace Phonon
 			if (session)
 			{
 				ComPointer<IMFMediaEvent> event;
-				session->EndGetEvent(result, event.p());
+				HRESULT hr = session->EndGetEvent(result, event.p());
+				Q_ASSERT(SUCCEEDED(hr));
 
-				MediaEventType eventType = MEUnknown;
-				event->GetType(&eventType);
-				
-				if (eventType == MESessionClosed)
+				if (event)
 				{
-					emit sessionClosed();
-				}
-				else
-				{
-					switch (eventType)
+					MediaEventType eventType = MEUnknown;
+					event->GetType(&eventType);
+
+					if (eventType == MESessionClosed)
 					{
-					case MESessionTopologySet:
-						emit topologyLoaded();
-						break;
-					case MESessionCapabilitiesChanged:
-						{
-							UINT32 capabilities = 0;
-							UINT32 delta = 0;
-							event->GetUINT32(MF_EVENT_SESSIONCAPS_DELTA, &delta);
-							event->GetUINT32(MF_EVENT_SESSIONCAPS, &capabilities);
-							if (MFSESSIONCAP_SEEK & delta)
-							{
-								emit canSeek(MFSESSIONCAP_SEEK & capabilities);
-							}
-							emit capabilitiesChanged();
-						}
-						break;
-					case MESessionStarted:
-						emit started();
-						break;
-					case MESessionPaused:
-						emit paused();
-						break;
-					case MESessionEnded:
-						emit ended();
-						break;
-					case MEEndOfPresentation:
-						__asm{nop};
-						break;
+						qDebug("MESessionClosed event");
+						emit sessionClosed();
 					}
+					else
+					{
+						switch (eventType)
+						{
+						case MESessionTopologySet:
+							//emit topologyLoaded();
+							qDebug("MESessionTopologySet event");
+							break;
+						case MESessionNotifyPresentationTime:
+							// TODO debug info
+							qDebug("MESessionNotifyPresentationTime event");
+							break;
+						case MESessionTopologyStatus:
+							{
+								UINT32 status = 0;
+								event->GetUINT32(MF_EVENT_TOPOLOGY_STATUS, (UINT32*)&status);
+								switch (status)
+								{
+								case MF_TOPOSTATUS_READY:
+									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_READY status");
+									emit topologyLoaded();
+									break;
+								case MF_TOPOSTATUS_STARTED_SOURCE:
+									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_STARTED_SOURCE status");
+									break;
+								case MF_TOPOSTATUS_DYNAMIC_CHANGED:
+									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_DYNAMIC_CHANGED status");
+									break;
+								case MF_TOPOSTATUS_SINK_SWITCHED:
+									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_SINK_SWITCHED status");
+									break;
+								case MF_TOPOSTATUS_ENDED:
+									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_ENDED status");
+									break;
+								default:
+									qDebug("MESessionTopologyStatus event with invalid/unknown status");
+									break;
+								}
+							}
+							break;
+						case MESessionCapabilitiesChanged:
+							{
+								UINT32 capabilities = 0;
+								UINT32 delta = 0;
+								event->GetUINT32(MF_EVENT_SESSIONCAPS_DELTA, &delta);
+								event->GetUINT32(MF_EVENT_SESSIONCAPS, &capabilities);
+								qDebug("MESessionCapabilitiesChanged event: MF_EVENT_SESSIONCAPS = %d, MF_EVENT_SESSIONCAPS_DELTA = %d", capabilities, delta);
+								if (MFSESSIONCAP_SEEK & delta)
+								{
+									emit canSeek(MFSESSIONCAP_SEEK & capabilities);
+								}
+								emit capabilitiesChanged();
+							}
+							break;
+						case MESessionStarted:
+							// TODO info on attributes
+							qDebug("MESessionStarted event");
+							emit started();
+							break;
+						case MESessionPaused:
+							qDebug("MESessionPaused event");
+							emit paused();
+							break;
+						case MESessionStopped:
+							qDebug("MESessionStopped event");
+							emit stopped();
+							break;
+						case MESessionEnded:
+							qDebug("MESessionEnded event");
+							emit ended();
+							break;
+						case MEEndOfPresentation:
+							qDebug("MEEndOfPresentation event");
+							break;
+						default:
+							qDebug("Unknown MF event");
+							break;
+						}
 
-					session->BeginGetEvent(this, session);
+						session->BeginGetEvent(this, session);
+					}
 				}
 
-				return E_NOTIMPL;
+				return hr;
 			}
 
 			ComPointer<IMFSourceResolver> sourceResolver(stateUnk);
@@ -197,6 +248,7 @@ namespace Phonon
 
 				ComPointer<IMFMediaSource> source(sourceUnk);
 
+				qDebug("MFCallback: Resolved source");
 				emit sourceReady(source);
 
 				return S_OK;

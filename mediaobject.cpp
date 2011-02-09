@@ -35,8 +35,11 @@ namespace Phonon
 													m_errorType(Phonon::NoError),
 													m_totalTime(0),
 													m_tickInterval(0),
-                                                    m_currentTime(0),
 													m_seeking(false),
+													m_hasNextSource(false),
+													m_prefinishEmitted(false),
+													m_prefinishMark(0),
+													m_aboutToFinishEmitted(false),
 													m_queuedSeek(-1)
         {
             setParent(parent);
@@ -51,6 +54,7 @@ namespace Phonon
 			connect(&m_session, SIGNAL(started()), this, SLOT(started()));
 			connect(&m_session, SIGNAL(paused()), this, SLOT(paused()));
 			connect(&m_session, SIGNAL(stopped()), this, SLOT(stopped()));
+			connect(&m_session, SIGNAL(ended()), this, SLOT(ended()));
         }
 
 		MediaObject::~MediaObject()
@@ -80,7 +84,8 @@ namespace Phonon
 
 		qint64 MediaObject::currentTime() const
 		{
-			return m_currentTime;
+			// Convert 100-nanosecond to millisecond
+			return m_session.GetCurrentTime() / 10000;
 		}
 
 		qint32 MediaObject::tickInterval() const
@@ -130,19 +135,19 @@ namespace Phonon
 
 		Phonon::ErrorType MediaObject::errorType() const
 		{
-			return Phonon::ErrorType();
+			return m_errorType;
 		}
 
 		qint32 MediaObject::prefinishMark() const
 		{
 			// TODO
-			return 0;//m_prefinishMark;
+			return m_prefinishMark;
 		}
 
-		void MediaObject::setPrefinishMark(qint32 /*newPrefinishMark*/)
+		void MediaObject::setPrefinishMark(qint32 newPrefinishMark)
 		{
 			// TODO
-			//m_prefinishMark = newPrefinishMark;
+			m_prefinishMark = newPrefinishMark;
 		}
 
 		qint32 MediaObject::transitionTime() const
@@ -159,26 +164,35 @@ namespace Phonon
 
 		qint64 MediaObject::remainingTime() const
 		{
-			return m_totalTime - m_currentTime;
+			return totalTime() - currentTime();
 		}
 
 		Phonon::MediaSource MediaObject::source() const
 		{
 			// TODO
-			return Phonon::MediaSource();
+			return m_source;
 		}
 
 		void MediaObject::setNextSource(const Phonon::MediaSource &source)
 		{
 			// TODO
-			m_nextSource = source;
-			//m_hasNextSource = true;
+			if (state() == Phonon::StoppedState || state() == Phonon::ErrorState)
+			{
+				setSource(source);
+			}
+			else
+			{
+				m_nextSource = source;
+				m_hasNextSource = true;
+			}
 		}
 
 		void MediaObject::setSource(const Phonon::MediaSource& source)
 		{
 			// TODO
 			m_source = source;
+			m_prefinishEmitted = false;
+			m_aboutToFinishEmitted = false;
 			m_session.LoadURL(source.url().toString().utf16());
 			emit currentSourceChanged(source);
 		}
@@ -206,9 +220,27 @@ namespace Phonon
 				return;
 
 			// Convert 100-nanosecond to millisecond
-			m_currentTime = m_session.GetCurrentTime() / 10000;
+			qint64 current = currentTime();
+			qint64 total = totalTime();
+			qint64 remaining = total - current;
 
-			emit tick(m_currentTime);
+			if (m_session.state() == Phonon::PlayingState && total)
+			{
+				// TODO
+				if (remaining < 2000 && !m_aboutToFinishEmitted)
+				{
+					m_aboutToFinishEmitted = true;
+					emit aboutToFinish();
+				}
+
+				if (m_prefinishMark > 0 && remaining < m_prefinishMark && !m_prefinishEmitted)
+				{
+					m_prefinishEmitted = true;
+					emit prefinishMarkReached(remaining);
+				}
+			}
+
+			emit tick(current);
 		}
 
 		void MediaObject::addVideoWidget(VideoWidget* videoWidget)
@@ -270,6 +302,7 @@ namespace Phonon
 			if (m_session.state() == Phonon::PlayingState && m_tickInterval)
 			{
 				m_ticker.start(m_tickInterval);
+				onTick();
 			}
 		}
 
@@ -280,8 +313,27 @@ namespace Phonon
 
 		void MediaObject::stopped()
 		{
-			// TODO
 			m_ticker.stop();
+		}
+
+		void MediaObject::ended()
+		{
+			// TODO
+			if (m_hasNextSource)
+			{
+				qDebug("Switching to next source: \"%s\"", m_nextSource.url().toString().toLocal8Bit().data());
+				MediaSource temp = m_nextSource;
+				m_nextSource = MediaSource();
+				m_hasNextSource = false;
+				setSource(temp);
+				m_session.Play();
+			}
+			else
+			{
+				qDebug("No next source, ending");
+				m_session.Stop();
+				m_ticker.stop();
+			}
 		}
 	}
 }

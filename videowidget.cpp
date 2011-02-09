@@ -41,9 +41,9 @@ namespace Phonon
 			{
 				SIZE videoSize = {0, 0};
 				m_videoControl->GetNativeVideoSize(&videoSize, NULL);
-				return QSize(videoSize.cx, videoSize.cy);
+				return QSize(videoSize.cx, videoSize.cy).expandedTo(QWidget::sizeHint());
 			}
-			return QSize(800, 600);
+			return QWidget::sizeHint();
 		}
 
 		void VideoWidget::resizeEvent(QResizeEvent* event)
@@ -52,13 +52,13 @@ namespace Phonon
 			{
 				RECT destRect = {0, 0, event->size().width(), event->size().height()};
 				HRESULT hr = m_videoControl->SetVideoPosition(0, &destRect);
-				hr = hr;
+				Q_ASSERT(SUCCEEDED(hr));
 			}
 		}
 
-		void VideoWidget::paintEvent(QPaintEvent* event)
+		void VideoWidget::paintEvent(QPaintEvent* /*event*/)
 		{
-			if (event && m_videoControl && m_videoActive)
+			if (m_videoControl && m_videoActive)
 			{
 				m_videoControl->RepaintVideo();
 			}
@@ -81,18 +81,16 @@ namespace Phonon
 			m_topoNode = node;
 		}
 
-		HRESULT VideoWidget::topologyLoaded(IMFMediaSession *mediaSession)
+		HRESULT VideoWidget::topologyLoaded()
 		{
-			HRESULT hr = MFGetService(mediaSession, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)m_videoControl.p());
+			HRESULT hr = E_NOINTERFACE;
 
 			if (m_topoNode)
 			{
 				ComPointer<IUnknown> object;
 				m_topoNode->GetObject(object.p());
-				ComPointer<IMFVideoDisplayControl> tempControl;
-				hr = MFGetService(object, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)tempControl.p());
+				hr = MFGetService(object, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)m_videoControl.p());
 				Q_ASSERT(SUCCEEDED(hr));
-				m_videoControl = tempControl;
 			}
 
 			return hr;

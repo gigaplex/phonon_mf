@@ -47,7 +47,7 @@ namespace Phonon
 
 			void reset();
 			void attach(IMFTopologyNode* node);
-			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
+			HRESULT topologyLoaded();
 
 		Q_SIGNALS:
 			void audioDeviceFailed();
@@ -55,7 +55,7 @@ namespace Phonon
 
 		private:
 			ComPointer<IMFTopologyNode> m_topoNode;
-			ComPointer<IMFAudioStreamVolume> m_audioControl;
+			ComPointer<IMFSimpleAudioVolume> m_audioControl;
 			qreal m_volume;
 		};
 	}

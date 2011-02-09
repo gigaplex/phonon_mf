@@ -57,6 +57,7 @@ namespace Phonon
 			void canSeek(bool);
 			void started();
 			void paused();
+			void stopped();
 			void ended();
 
 		private:

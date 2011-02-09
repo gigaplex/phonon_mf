@@ -18,6 +18,7 @@ along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #include "mfsession.h"
 #include "audiooutput.h"
 #include "videowidget.h"
+#include "mediaobject.h"
 
 #include <QWidget>
 
@@ -31,6 +32,28 @@ namespace Phonon
 {
 	namespace MF
 	{
+		char* getStateString(Phonon::State state)
+		{
+			switch (state)
+			{
+			case LoadingState:
+				return "LoadingState";
+			case StoppedState:
+				return "StoppedState";
+			case PlayingState:
+				return "PlayingState";
+			case BufferingState:
+				return "BufferingState";
+			case PausedState:
+				return "PausedState";
+			case ErrorState:
+				return "ErrorState";
+			default:
+				qFatal("Unknown state");
+				return "Unknown state";
+			}
+		}
+
 		MFSession::MFSession() : 
 			m_state(Phonon::LoadingState),
 			m_nextState(Phonon::StoppedState),
@@ -57,34 +80,40 @@ namespace Phonon
 		{
 			switch (m_state)
 			{
-			case PlayingState:
-			case BufferingState: // Need to revise buffering, perhaps treat like paused
+			case Phonon::PlayingState:
+			case Phonon::BufferingState: // Need to revise buffering, perhaps treat like paused
 				return S_FALSE;
 
-			case LoadingState:
-				m_nextState = PlayingState;
+			case Phonon::LoadingState:
+				m_nextState = Phonon::PlayingState;
 				return S_FALSE;
 
-			case StoppedState:
+			case Phonon::StoppedState:
 				if (m_topoDirty)
 				{
 					EnsureSinksConnected();
 				}
-				// Fall through
 
-			case PausedState:
+				{
+					// Play from beginning
+					HRESULT hr = Seek(0);
+					setState(Phonon::PlayingState);
+					return hr;
+				}
+				
+			case Phonon::PausedState:
 				{
 					PROPVARIANT startParam;
 					PropVariantInit(&startParam);
 					HRESULT hr = m_session->Start(0, &startParam);
 					PropVariantClear(&startParam);
 
-					setState(PlayingState);
+					setState(Phonon::PlayingState);
 
 					return hr;
 				}
 
-			case ErrorState:
+			case Phonon::ErrorState:
 			default:
 				return E_FAIL;
 			}
@@ -92,17 +121,18 @@ namespace Phonon
 
 		HRESULT MFSession::Pause()
 		{
-			if (m_state == PlayingState)
+			if (m_state == Phonon::PlayingState)
 			{
 				if (m_session)
 				{
 					HRESULT hr = m_session->Pause();
-					setState(PausedState);
+					setState(Phonon::PausedState);
 					return hr;
 				}
 				else
 				{
-					setState(ErrorState);
+					setState(Phonon::ErrorState);
+					return E_FAIL;
 				}
 			}
 	
@@ -117,7 +147,7 @@ namespace Phonon
 				hr = m_session->Stop();
 			}
 
-			setState(StoppedState);
+			setState(Phonon::StoppedState);
 
 			return hr;
 		}
@@ -126,11 +156,11 @@ namespace Phonon
 		{
 			CloseSession();
 
-			MFCreateMediaSession(0, m_session.p());
+			HRESULT hr = MFCreateMediaSession(0, m_session.p());
 
 			m_session->BeginGetEvent(m_callback, m_session);
 
-			return E_NOTIMPL;
+			return hr;
 		}
 
 		HRESULT MFSession::CloseSession()
@@ -153,11 +183,13 @@ namespace Phonon
 			if (m_source)
 			{
 				m_source->Shutdown();
+				m_source.Release();
 			}
 
 			if (m_session)
 			{
 				m_session->Shutdown();
+				m_session.Release();
 			}
 
 			return E_NOTIMPL;
@@ -165,18 +197,18 @@ namespace Phonon
 
 		HRESULT MFSession::BeginCreateSource(const wchar_t* url)
 		{
-			setState(LoadingState);
-			m_nextState = StoppedState;
+			setState(Phonon::LoadingState);
+			m_nextState = Phonon::StoppedState;
 			m_topoDirty = true;
 
 			m_audioSources.clear();
 			m_videoSources.clear();
 
 			ComPointer<IMFSourceResolver> sourceResolver;
-			MFCreateSourceResolver(sourceResolver.p());
+			HRESULT hr = MFCreateSourceResolver(sourceResolver.p());
 
 			sourceResolver->BeginCreateObjectFromURL(url, MF_RESOLUTION_MEDIASOURCE, 0, 0, m_callback, sourceResolver);
-			return E_NOTIMPL;
+			return hr;
 		}
 
 		HRESULT MFSession::EnsureSinksConnected()
@@ -275,6 +307,7 @@ namespace Phonon
 			{
 				Phonon::State oldState = m_state;
 				m_state = state;
+				qDebug("Phonon state change from %s to %s", getStateString(oldState), getStateString(m_state));
 				emit stateChanged(m_state, oldState);
 			}
 		}
@@ -290,7 +323,7 @@ namespace Phonon
 
 			if (!m_source)
 			{
-				setState(ErrorState);
+				setState(Phonon::ErrorState);
 
 				return;
 			}
@@ -412,12 +445,22 @@ namespace Phonon
 
 			emit metaDataChanged(metadataMap);
 
-			setState(StoppedState);
-
-			if (m_nextState == PlayingState)
+			if (m_nextState == Phonon::PlayingState)
 			{
-				Play();
-				m_nextState = StoppedState;
+				EnsureSinksConnected();
+
+				PROPVARIANT startParam;
+				PropVariantInit(&startParam);
+				m_session->Start(0, &startParam);
+				PropVariantClear(&startParam);
+
+				setState(Phonon::PlayingState);
+
+				m_nextState = Phonon::StoppedState;
+			}
+			else
+			{
+				setState(Phonon::StoppedState);
 			}
 		}
 
@@ -425,12 +468,12 @@ namespace Phonon
 		{
 			foreach(VideoWidget* videoWidget, m_videoSinks)
 			{
-				videoWidget->topologyLoaded(m_session);
+				videoWidget->topologyLoaded();
 			}
 
 			foreach(AudioOutput* audioOutput, m_audioSinks)
 			{
-				audioOutput->topologyLoaded(m_session);
+				audioOutput->topologyLoaded();
 			}
 
 			ComPointer<IMFClock> clock;
@@ -439,7 +482,8 @@ namespace Phonon
 			m_clock = clock;
 
 			DWORD capabilities = 0;
-			m_session->GetSessionCapabilities(&capabilities);
+			HRESULT hr = m_session->GetSessionCapabilities(&capabilities);
+			Q_ASSERT(SUCCEEDED(hr));
 			emit canSeek(capabilities & MFSESSIONCAP_SEEK);
 		}
 
@@ -456,8 +500,7 @@ namespace Phonon
 
 		void MFSession::onEnded()
 		{
-			setState(Phonon::StoppedState);
-			emit stopped();
+			emit ended();
 		}
 
 		void MFSession::sessionClosed()

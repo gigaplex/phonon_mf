@@ -18,10 +18,6 @@ along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #include "audiooutput.h"
 #include "mediaobject.h"
 
-//#include <QtCore/QVector>
-
-//#include <cmath>
-
 QT_BEGIN_NAMESPACE
 
 namespace Phonon
@@ -50,12 +46,7 @@ namespace Phonon
 
 				if (m_audioControl)
 				{
-					UINT32 channelCount = 0;
-					m_audioControl->GetChannelCount(&channelCount);
-					for (UINT32 i = 0; i < channelCount; i++)
-					{
-						m_audioControl->SetChannelVolume(i, m_volume);
-					}
+					m_audioControl->SetMasterVolume(m_volume);
 				}
 
 				emit volumeChanged(m_volume);
@@ -89,18 +80,20 @@ namespace Phonon
 			m_topoNode = node;
 		}
 
-		HRESULT AudioOutput::topologyLoaded(IMFMediaSession* mediaSession)
+		HRESULT AudioOutput::topologyLoaded()
 		{
 			// TODO
-			HRESULT hr = MFGetService(mediaSession, MR_STREAM_VOLUME_SERVICE, __uuidof(IMFAudioStreamVolume), (void**)m_audioControl.p());
+			HRESULT hr = E_NOINTERFACE;
 
-			if (m_audioControl)
+			if (m_topoNode)
 			{
-				UINT32 channelCount = 0;
-				m_audioControl->GetChannelCount(&channelCount);
-				for (UINT32 i = 0; i < channelCount; i++)
+				ComPointer<IUnknown> object;
+				m_topoNode->GetObject(object.p());
+				hr = MFGetService(object, MR_POLICY_VOLUME_SERVICE, __uuidof(IMFSimpleAudioVolume), (void**)m_audioControl.p());
+				Q_ASSERT(SUCCEEDED(hr));
+				if (m_audioControl)
 				{
-					m_audioControl->SetChannelVolume(i, m_volume);
+					hr = m_audioControl->SetMasterVolume(m_volume);
 				}
 			}
 

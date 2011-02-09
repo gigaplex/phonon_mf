@@ -58,7 +58,7 @@ namespace Phonon
 
 			void reset();
 			void attach(IMFTopologyNode* node);
-			HRESULT topologyLoaded(IMFMediaSession* mediaSession);
+			HRESULT topologyLoaded();
 
 		public Q_SLOTS:
 			void stateChanged(Phonon::State newState, Phonon::State oldState);
