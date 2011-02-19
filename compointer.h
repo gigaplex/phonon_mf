@@ -24,6 +24,65 @@ namespace Phonon
 {
 	namespace MF
 	{
+		template <typename PtrType, typename SizeType = UINT32>
+		class ComArray
+		{
+		public:
+			ComArray() : m_array(0), m_count(0)
+			{
+			}
+
+			~ComArray()
+			{
+				Release();
+			}
+
+			void Release()
+			{
+				if (m_array)
+				{
+					for (SizeType i = 0; i < m_count; i++)
+					{
+						m_array[i]->Release();
+					}
+
+					CoTaskMemFree(m_array);
+				}
+
+				m_count = 0;
+				m_array = 0;
+			}
+
+			PtrType* operator[](int i)
+			{
+				return m_array[i];
+			}
+
+			SizeType size()
+			{
+				return m_count;
+			}
+
+			PtrType*** pp()
+			{
+				Release();
+				return &m_array;
+			}
+
+			quint32* pc()
+			{
+				return &m_count;
+			}
+
+		private:
+			PtrType** m_array;
+			SizeType m_count;
+
+			// Copying not yet implemented
+			ComArray(ComArray<PtrType, SizeType>& other);
+			ComArray& operator =(ComArray<PtrType, SizeType>& other);
+		};
+
 		// Prevents accidental calling of AddRef and Release when encapsulated by ComPointer
 		template <typename T>
 		class HideAddRefRelease : public T

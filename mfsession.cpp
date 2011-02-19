@@ -204,11 +204,50 @@ namespace Phonon
 			m_audioSources.clear();
 			m_videoSources.clear();
 
-			ComPointer<IMFSourceResolver> sourceResolver;
-			HRESULT hr = MFCreateSourceResolver(sourceResolver.p());
+#if (WINVER >= _WIN32_WINNT_WIN7)
+			if (QString("webcam").compare(QString::fromUtf16(url)) == 0)
+			{
+				ComPointer<IMFAttributes> config;
+				ComArray<IMFActivate> devices;
 
-			sourceResolver->BeginCreateObjectFromURL(url, MF_RESOLUTION_MEDIASOURCE, 0, 0, m_callback, sourceResolver);
-			return hr;
+				HRESULT hr = MFCreateAttributes(config.p(), 1);
+
+				if (config)
+				{
+					hr = config->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE, MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
+					if (SUCCEEDED(hr))
+					{
+						hr = MFEnumDeviceSources(config, devices.pp(), devices.pc());
+					}
+				}
+
+				ComPointer<IMFMediaSource> source;
+
+				if (devices.size())
+				{
+					hr = devices[0]->ActivateObject(__uuidof(IMFMediaSource), (void**)source.p());
+				}
+				else
+				{
+					hr = MF_E_NOT_FOUND;
+				}
+
+				if (SUCCEEDED(hr))
+				{
+					sourceReady(source);
+				}
+
+				return hr;
+			}
+			else
+#endif // (WINVER >= _WIN32_WINNT_WIN7)
+			{
+				ComPointer<IMFSourceResolver> sourceResolver;
+				HRESULT hr = MFCreateSourceResolver(sourceResolver.p());
+
+				sourceResolver->BeginCreateObjectFromURL(url, MF_RESOLUTION_MEDIASOURCE, 0, 0, m_callback, sourceResolver);
+				return hr;
+			}
 		}
 
 		HRESULT MFSession::EnsureSinksConnected()
@@ -554,7 +593,7 @@ namespace Phonon
 			{
 				HRESULT hr = m_presentation->GetUINT64(MF_PD_DURATION, (UINT64*)&duration);
 
-				Q_ASSERT(SUCCEEDED(hr));
+				//Q_ASSERT(SUCCEEDED(hr));
 			}
 
 			return duration;
