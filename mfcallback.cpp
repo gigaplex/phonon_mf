@@ -177,11 +177,11 @@ namespace Phonon
 								case MF_TOPOSTATUS_STARTED_SOURCE:
 									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_STARTED_SOURCE status");
 									break;
-#if (WINVER >= _WIN32_WINNT_WIN7)
+#if defined(_WIN32_WINNT_WIN7) && (WINVER >= _WIN32_WINNT_WIN7)
 								case MF_TOPOSTATUS_DYNAMIC_CHANGED:
 									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_DYNAMIC_CHANGED status");
 									break;
-#endif // (WINVER >= _WIN32_WINNT_WIN7)
+#endif // defined(_WIN32_WINNT_WIN7) && (WINVER >= _WIN32_WINNT_WIN7)
 								case MF_TOPOSTATUS_SINK_SWITCHED:
 									qDebug("MESessionTopologyStatus event with MF_TOPOSTATUS_SINK_SWITCHED status");
 									break;

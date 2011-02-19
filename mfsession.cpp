@@ -204,7 +204,7 @@ namespace Phonon
 			m_audioSources.clear();
 			m_videoSources.clear();
 
-#if (WINVER >= _WIN32_WINNT_WIN7)
+#if defined(_WIN32_WINNT_WIN7) && (WINVER >= _WIN32_WINNT_WIN7)
 			if (QString("webcam").compare(QString::fromUtf16(url)) == 0)
 			{
 				ComPointer<IMFAttributes> config;
@@ -240,7 +240,7 @@ namespace Phonon
 				return hr;
 			}
 			else
-#endif // (WINVER >= _WIN32_WINNT_WIN7)
+#endif // defined(_WIN32_WINNT_WIN7) && (WINVER >= _WIN32_WINNT_WIN7)
 			{
 				ComPointer<IMFSourceResolver> sourceResolver;
 				HRESULT hr = MFCreateSourceResolver(sourceResolver.p());
