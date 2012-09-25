@@ -6,6 +6,7 @@ TEMPLATE = lib
 TARGET = 
 DEPENDPATH += .
 INCLUDEPATH += .
+LIBS += Ole32.lib
 
 QT += phonon
 
