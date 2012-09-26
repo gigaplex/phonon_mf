@@ -38,6 +38,7 @@ namespace Phonon
 													m_seeking(false),
 													m_hasNextSource(false),
 													m_prefinishEmitted(false),
+													m_finishedEmitted(false),
 													m_prefinishMark(0),
 													m_aboutToFinishEmitted(false),
 													m_queuedSeek(-1)
@@ -193,6 +194,7 @@ namespace Phonon
 			m_source = source;
 			m_prefinishEmitted = false;
 			m_aboutToFinishEmitted = false;
+			m_finishedEmitted = false;
 			m_session.LoadURL(source.url().toString().utf16());
 			emit currentSourceChanged(source);
 		}
@@ -333,6 +335,12 @@ namespace Phonon
 				qDebug("No next source, ending");
 				m_session.Stop();
 				m_ticker.stop();
+
+				if (!m_finishedEmitted)
+				{
+					m_finishedEmitted = true;
+					emit finished();
+				}
 			}
 		}
 	}

@@ -115,6 +115,7 @@ namespace Phonon
 			bool m_seeking;
 			bool m_prefinishEmitted;
 			bool m_aboutToFinishEmitted;
+			bool m_finishedEmitted;
 			qint64 m_queuedSeek;
 		};
 	}
