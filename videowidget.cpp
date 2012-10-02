@@ -92,6 +92,8 @@ namespace Phonon
 				hr = MFGetService(object, MR_VIDEO_RENDER_SERVICE, __uuidof(IMFVideoDisplayControl), (void**)m_videoControl.p());
 				Q_ASSERT(SUCCEEDED(hr));
 
+				//m_videoControl->SetRenderingPrefs(MFVideoRenderPrefs_DoNotRepaintOnStop);
+
 				QResizeEvent re(geometry().size(), geometry().size());
 				resizeEvent(&re);
 			}
